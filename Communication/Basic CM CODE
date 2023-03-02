@@ -302,18 +302,3 @@ void printMacAddress(byte mac[]) {
 
 
 /*-----------------------------------------------------------------*/
-
-/*****
- * Function definition:   printMacAddress
- * 
- * Purpose: Prints network device MAC address.
- * 
- * Parameters:
- * 
- * void
- * 
- * Return value:
- * 
- * byte mac address
- * 
- *****/
