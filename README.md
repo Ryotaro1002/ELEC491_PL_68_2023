@@ -1,1 +1,1 @@
-# ELEC491_PL_68
+# ELEC491 PL-68 Capstone
