@@ -138,6 +138,11 @@ void loop( )
       }
   
    }
+ 
+ // placeholder for detection algorithm (Ryotaro)
+  if (state == Detection) { 
+   detection_algortihm(); 
+  }
 
 } // Close loop.
 
