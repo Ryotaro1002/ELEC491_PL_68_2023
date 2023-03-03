@@ -1,4 +1,4 @@
-# ELEC491 PL-68 Capstone
+# ELEC491 Capstone PL-68 (2022/23W)
 This is the repository for team PL-68 in ELEC 491 Capstone project (2022/23W). 
 
 During the project, this repo will be used to develop and share code. 
