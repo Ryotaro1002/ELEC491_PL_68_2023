@@ -73,17 +73,16 @@ void setup( )
     // wait 10 seconds for connection:
     delay(10000);
     
-    // pinMode(buttonPin, INPUT);
+ 
     
   } // Close while.
 
   // you're connected now, so print out the data:
-  
+  // pinMode(buttonPin, INPUT);
+  // pinmode(ResetPin, INPUT);
   Serial.print("You're connected to the network");
   printCurrentNet();
   printWifiData();
-
-  check_initial = 0;
   
 } // Close setup.
 
