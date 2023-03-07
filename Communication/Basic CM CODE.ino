@@ -5,18 +5,16 @@
 //#include <SPI.h>
 #include <WiFiNINA.h>
 
-// WiFi network info.
-//#include "arduino_secrets.h"  // SSID and password file
-
 char ssid[] = "ubcvisitor";    // your network SSID (name)
 char pass[] = "";    // your network password (use for WPA, or use as key for WEP)
 
 int status = WL_IDLE_STATUS;  // the Wifi radio's status
-int state_machine;   //used for state machine
-int check_initial;
 
-//double air_difference;
-double collission_data;
+int state;   //used for state machine
+int check_collision = 0;
+int check_fall; //= 0
+double collission_data; //= 1
+int buttonPin; //Pending
 
 const unsigned long TIMEE = 180000;
 double DEFAULT_WINDOWSIZE = 0.4; 
@@ -27,26 +25,11 @@ double DEFAULT_RVALUE = 1;
 #define CAYENNE_PRINT Serial  // Comment this out to disable prints and save space
 #include <CayenneMQTTWiFi.h>
 
-// Cayenne authentication info. This should be obtained from the Cayenne Dashboard.
-//char username[] = "3ef26550-5bd8-11ed-bf0a-bb4ba43bd3f6";
-//char password[] = "23a522a0ce46c0ddab9cf95bad7db510a16bdb4f";
-//char clientID[] = "bba64a00-a34d-11ed-8d53-d7cd1025126a"; ///602e7b10-96fb-11ed-8d53-d7cd1025126a old one
-
-// Cayenne virtual channel 1 (relay).
-//#define VIRTUAL_CHANNEL_2 2// AIR TEMPERATURE(INSIDE)
-//#define VIRTUAL_CHANNEL_3 3// SURFACE TEMPERATURE(INSIDE)
-//#define VIRTUAL_CHANNEL_5 5// AIR TEMPERATURE(OUTSIDE)
-//#define VIRTUAL_CHANNEL_6 6// SURFACE TEMPERATURE(OUTSIDE)
-//#define VIRTUAL_CHANNEL_9 9// R value
-//#define VIRTUAL_CHANNEL_10 10//
-
-//#define ACTUATOR_PIN_2 2 // Do not use digital pins 0 or 1 since those conflict with the use of Serial.
-
 //  Thingspeak libraries.
 #include "ThingSpeak.h" // always include thingspeak header file after other header files and custom macros
 WiFiClient  client;
 
-//Read temperature data from thingspeak
+//Read/Send data from thingspeak
 unsigned long tempChannelNumber = 2026263;
 const char * myCounterReadAPIKey = "AQRWX7EYH43YYRGD";
 const char * myWriteAPIKey = "WN6UZKY58ABMJW89";
@@ -60,7 +43,6 @@ void setup( )
 {
 
   //Initialize serial and wait for port to open:
-  
   Serial.begin(9600);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
@@ -68,12 +50,10 @@ void setup( )
   } // Close while.
 
   // check for the WiFi module:
-  
   if (WiFi.status() == WL_NO_MODULE) {
     Serial.println("Communication with WiFi module failed!");
     // don't continue
     while (true);
-  
   } // Close if.
 
   String fv = WiFi.firmwareVersion();
@@ -82,21 +62,19 @@ void setup( )
   
   } // Close if.
 
-
   // attempt to connect to Wifi network:
-  
   while (status != WL_CONNECTED) {
     Serial.print("Attempting to connect to WPA SSID: ");
     Serial.println(ssid);
     
     // Connect to WPA/WPA2 network:
-    
     status = WiFi.begin(ssid, pass);
 
     // wait 10 seconds for connection:
-    
     delay(10000);
-  
+    
+    // pinMode(buttonPin, INPUT);
+    
   } // Close while.
 
   // you're connected now, so print out the data:
@@ -115,37 +93,62 @@ void loop( )
 
 {
    //Serial.println("Loop begins");
+   
 //Begin State Machine
-  if (state_machine == 0){
-    Serial.begin(9600);
-  //Initialize ThingSpeak    
-    ThingSpeak.begin(client); 
-    int statusCode = 0; 
-  // Read in field 1 of the public channel recording the temperature
-  // inside_surfaceTemp = ThingSpeak.readFloatField(tempChannelNumber, insidetemperatureFieldNumber,myCounterReadAPIKey);
-  // Read in field 2 of the public channel recording the temperature
-  // outside_surfaceTemp = ThingSpeak.readFloatField(tempChannelNumber, outsidetemperatureFieldNumber,myCounterReadAPIKey);  
-  //surface_difference = fabs(inside_surfaceTemp - outside_surfaceTemp);
-  // Check the status of the read operation to see if it was successful
-      int x = ThingSpeak.writeField(tempChannelNumber, wirteFieldNumber, float(collission_data), myWriteAPIKey);
-      if(x == 200){
-        Serial.println("Channel update successful.");
-        state_machine = 0;
-      }
-      else{
-        Serial.println("Problem updating channel. HTTP error code " + String(x));
-        state_machine = 0;
-      }
-  
+  if (state == Detection){
+    detection_algortihm(check_collision,check_fall); 
+    
+    if (check_collision){
+      state = senddata;
+    }
+    else if(check_fall){
+      state = re_start;
+    }
+    else{
+      state = Detection;  
+    }
+   }
+//State2
+  else if (state == senddata){
+    send_data();
+    state = Detection;
+   }
+   
+//State3 [If we use the arduino reset button, not sure if we need this stage]
+  else if (state == re_start){
+    falldown_setup();
+    state = Detection;
    }
  
- // placeholder for detection algorithm (Ryotaro)
-  if (state == Detection) { 
-   detection_algortihm(); 
-  }
+  
 
 } // Close loop.
 
+
+void send_data(){
+    
+    ThingSpeak.begin(client); 
+    int statusCode = 0; 
+  // Check the status of the read operation to see if it was successful
+      int x = ThingSpeak.writeField(tempChannelNumber, wirteFieldNumber, float(collission_data), myWriteAPIKey);
+      while (x != 200){
+        Serial.println("Problem updating channel. HTTP error code " + String(x));
+        x = ThingSpeak.writeField(tempChannelNumber, wirteFieldNumber, float(collission_data), myWriteAPIKey);
+      }
+      else{
+        Serial.println("Problem updating channel. HTTP error code " + String(x));
+      }
+  }
+
+void falldown_setup(){
+  //pending
+    buttonState = digitalRead(buttonPin);
+    // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
+    if (buttonState == HIGH) {
+      // Do something
+    }
+  
+  }
 
 /*****
  * Function definition:   connectWiFiNetwork
@@ -307,3 +310,18 @@ void printMacAddress(byte mac[]) {
 
 
 /*-----------------------------------------------------------------*/
+
+/*****
+ * Function definition:   printMacAddress
+ * 
+ * Purpose: Prints network device MAC address.
+ * 
+ * Parameters:
+ * 
+ * void
+ * 
+ * Return value:
+ * 
+ * byte mac address
+ * 
+ *****/
