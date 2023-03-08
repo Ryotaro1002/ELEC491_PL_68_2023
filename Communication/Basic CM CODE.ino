@@ -1,9 +1,13 @@
-/* Program to read data from temperature sensors and connect to the
- * Cayenne IoT servers via the Uno WiFi Rev 2*/
+/* Program for sending collision data*/
+#define Detection 1000
+#define senddata  1001
+#define re_start  1010
+
 
 // Include WiFiNINA libraries.
 //#include <SPI.h>
 #include <WiFiNINA.h>
+//#include <detection_code.h>
 
 char ssid[] = "ubcvisitor";    // your network SSID (name)
 char pass[] = "";    // your network password (use for WPA, or use as key for WEP)
@@ -15,6 +19,8 @@ int check_collision = 0;
 int check_fall; //= 0
 double collission_data; //= 1
 int buttonPin; //Pending
+#define ResetPin 24 // or whatever pin is the reset pin
+
 
 const unsigned long TIMEE = 180000;
 double DEFAULT_WINDOWSIZE = 0.4; 
@@ -73,8 +79,6 @@ void setup( )
     // wait 10 seconds for connection:
     delay(10000);
     
- 
-    
   } // Close while.
 
   // you're connected now, so print out the data:
@@ -116,7 +120,7 @@ void loop( )
 //State3 [If we use the arduino reset button, not sure if we need this stage]
   else if (state == re_start){
     falldown_setup();
-    state = Detection;
+    state = Detection;//re_start
    }
  
   
@@ -142,6 +146,7 @@ void send_data(){
 void falldown_setup(){
   //pending
     buttonState = digitalRead(buttonPin);
+    
     // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
     if (buttonState == HIGH) {
       // Do something
@@ -149,6 +154,8 @@ void falldown_setup(){
   
   }
 
+/*-----------------------------------------------------------------*/
+/*-----------------------------------------------------------------*/
 /*****
  * Function definition:   connectWiFiNetwork
  * 
@@ -309,18 +316,3 @@ void printMacAddress(byte mac[]) {
 
 
 /*-----------------------------------------------------------------*/
-
-/*****
- * Function definition:   printMacAddress
- * 
- * Purpose: Prints network device MAC address.
- * 
- * Parameters:
- * 
- * void
- * 
- * Return value:
- * 
- * byte mac address
- * 
- *****/
