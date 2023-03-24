@@ -20,9 +20,7 @@
 
 // include files for wavelet denoising
 #include "denoiseSignal.h"
-#include "denoiseSignal_emxAPI.h"
 #include "denoiseSignal_terminate.h"
-#include "denoiseSignal_types.h"
 #include "rt_nonfinite.h"
 #include "rtwtypes.h"
 
@@ -48,7 +46,7 @@ int prev_below_idx;
 // initialize variables for sampling
 int16_t x, y, z; 
 int z_idx = -1; // index for accelerometer reading array
-double z_data[150]; // array to store accelerometer readings
+static double z_data[128]; // array to store accelerometer readings
 
 // initialize variables used for debugging
 int iteration = 0;
@@ -97,23 +95,23 @@ void setup() {
 }
 
 void loop() {
-  if (z_idx == 149) {
+  if (z_idx == 127) {
     // reset detected flag
     detected = 0; 
     
     // set up output array
-    emxArray_real_T *out;
-    emxInitArray_real_T(&out, 2);
+    static double out_data[128];
+    int out_size;    
 
     // wavelet denoising
     // Serial.println("Denoise function start");
     unsigned long denoise_start = millis();
-    denoiseSignal(z_data, out);
+    denoiseSignal(z_data, out_data, *(int(*)[1]) & out_size);
     unsigned long denoise_end = millis();
     // Serial.println("Denoise function end");
 
     // detection logic
-    for (int i = 0; i < 150; i++) {
+    for (int i = 0; i < 128; i++) {
       // if (!flag && detected) {
       //   detected = 0;
       // } 
@@ -124,7 +122,7 @@ void loop() {
           break;
         }
       }
-      if (abs(out->data[i]) > g_threshold) {
+      if (abs(out_data[i]) > g_threshold) {
         if (!flag) {
           flag = 1;
           prev_idx = i;
@@ -151,9 +149,9 @@ void loop() {
         //   prev_below_idx = prev_below_idx - 150;
         // }
       }
-      if (i == 149) {
-        prev_idx -= 150;
-        prev_below_idx -= 150; 
+      if (i == 127) {
+        prev_idx -= 128;
+        prev_below_idx -= 128; 
       }
     }
 
@@ -167,7 +165,7 @@ void loop() {
     }
 
     // for V&V: test wavelet denoising result
-    for (int i = 0; i < 150; i++) {
+    for (int i = 0; i < 128; i++) {
       if (i == 0) {
         Serial.print(iteration);
       } else {
@@ -178,7 +176,7 @@ void loop() {
       Serial.print(" ");      
       Serial.print(z_data[i]);
       Serial.print(" ");
-      Serial.print(out->data[i]);
+      Serial.print(out_data[i]);
       Serial.print(" ");
       if (i == 0) {
         Serial.print(denoise_start);
@@ -201,12 +199,12 @@ void loop() {
     // flag = detected; 
     // result[iteration] = detected;
     // detected = 0;    
-    emxDestroyArray_real_T(out); 
+    // emxDestroyArray_real_T(out); 
     // Serial.println("Output array destroyed");
-    z_idx = 0; 
-    iteration++;
+    // z_idx = 0; 
+    // iteration++;
   } else {
-    z_idx++;
+    // z_idx++;
   }
 
   // Serial.print(idx);
@@ -229,7 +227,7 @@ void myDebugFcn(void) {
 
 // interrupt handler for Timer/Counter 3
 void TC3_Handler(void) {
-  if (z_idx == 149) {
+  if (z_idx == 127) {
     z_idx = 0;
   } else {
     z_idx++;
