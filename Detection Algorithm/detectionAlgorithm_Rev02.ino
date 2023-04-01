@@ -23,8 +23,6 @@
 #include "waveletDenoiser.h"
 static float32_t output[BLOCK_SIZE];
 
-void myDebugFcn(void);
-
 // define global constants
 Adafruit_ADXL343 accel = Adafruit_ADXL343(12345); // Assign a unique ID to sensor (taken from example)
 
@@ -45,12 +43,9 @@ int prev_below_idx;
 // initialize variables for sampling
 int16_t x, y, z; 
 int z_idx = -1; // index for accelerometer reading array
-static float32_t z_data[128]; // array to store accelerometer readings
-
-// initialize variables used for debugging
-int iteration = 0;
-// unsigned long duration; // in ms
-// bool result[10];
+static float32_t z_data[BLOCK_SIZE * 2]; // array to store accelerometer readings
+int offset = -1;
+bool isBuffer1Full = 0, isBuffer2Full = 0;
 
 void setup() {
   Serial.begin(115200); // initialize serial communication thru USB for debugging purposes only
@@ -62,7 +57,7 @@ void setup() {
     while(1); 
   }
   accel.setRange(ADXL343_RANGE_16_G); // 2,4,8,16g configurable
-  accel.setDataRate(ADXL343_DATARATE_3200_HZ); // refer to Adafruit_ADXL343.h for values 
+  accel.setDataRate(ADXL343_DATARATE_400_HZ); // refer to Adafruit_ADXL343.h for values 
 
   // Configuring timer interrupt
   __disable_irq(); // global interrupt disable
@@ -94,27 +89,21 @@ void setup() {
 }
 
 void loop() {
-  if (z_idx == 127) {
+  if (isBuffer1Full || isBuffer2Full) {
     // reset detected flag
     detected = 0;  
 
-    float32_t *input = &z_data[0]; 
+    float32_t *input = &z_data[offset]; 
     float32_t *denoised = &output[0];    
 
     // wavelet denoising
-    // Serial.println("Denoise function start");
-    unsigned long denoise_start = millis();
+    unsigned long denoise_start = micros();
     wDenoise(input, denoised);
-    unsigned long denoise_end = millis();
-    // Serial.println("Denoise function end");
+    unsigned long denoise_end = micros();
 
     // detection logic
-    for (int i = 0; i < 128; i++) {
-      // if (!flag && detected) {
-      //   detected = 0;
-      // } 
+    for (int i = 0; i < BLOCK_SIZE; i++) {
       if (flag == 1) {
-        // 
         if (below_score > below_threshold) {
           flag = 0;
           break;
@@ -124,15 +113,11 @@ void loop() {
         if (!flag) {
           flag = 1;
           prev_idx = i;
-          // unsigned long detected_time = millis();
         } else {
           if (abs(i - prev_idx) < prox_threshold) {
             impact_score++;
           }
           prev_idx = i;
-          // if (i == 149) {
-          //   prev_idx = prev_idx - 150;
-          // }
         }
       } else {
         if (flag) {
@@ -143,13 +128,10 @@ void loop() {
           }
         }
         prev_below_idx = i;
-        // if (i == 149) {
-        //   prev_below_idx = prev_below_idx - 150;
-        // }
       }
-      if (i == 127) {
-        prev_idx -= 128;
-        prev_below_idx -= 128; 
+      if (i == BLOCK_SIZE - 1) {
+        prev_idx -= BLOCK_SIZE;
+        prev_below_idx -= BLOCK_SIZE; 
       }
     }
 
@@ -159,22 +141,24 @@ void loop() {
       } else {
         detected = 0;
       } 
+
       impact_score = 0;
+
+      if (offset == 0) {
+        isBuffer1Full = 0;
+      } else {
+        isBuffer2Full = 0;
+      }
+      offset = -1; // reset offset
     }
 
     // for V&V: test wavelet denoising result
     for (int i = 0; i < 128; i++) {
-      if (i == 0) {
-        Serial.print(iteration);
-      } else {
-        Serial.print("_");
-      }
-      Serial.print(" "); 
-      Serial.print(i);
+      Serial.print(i); // index
       Serial.print(" ");      
-      Serial.print(z_data[i]);
+      Serial.print(*(input + i)); // input
       Serial.print(" ");
-      Serial.print(out_data[i]);
+      Serial.print(*(denoised + i)); // denoised output
       Serial.print(" ");
       if (i == 0) {
         Serial.print(denoise_start);
@@ -193,41 +177,21 @@ void loop() {
       Serial.write(13); 
       Serial.write(10); 
     }
-
-    // flag = detected; 
-    // result[iteration] = detected;
-    // detected = 0;    
-    // emxDestroyArray_real_T(out); 
-    // Serial.println("Output array destroyed");
-    // z_idx = 0; 
-    // iteration++;
-  } else {
-    // z_idx++;
   }
-
-  // Serial.print(idx);
-  // Serial.print(" ");
-  // Serial.println(iteration);
-  // if (iteration == 9) {
-  //   for (int j = 0; j < 10; j++) {
-  //     Serial.println(result[j]);      
-  //   }
-  //   Serial.println("Stalling..."); 
-  //   while(true) {
-  //     // Stall once 10 iteration is complete
-  //   }
-  // } 
-}
-
-void myDebugFcn(void) {
-
 }
 
 // interrupt handler for Timer/Counter 3
 void TC3_Handler(void) {
-  if (z_idx == 127) {
+  // logic to update the array index
+  if (z_idx == BLOCK_SIZE - 1) {
     z_idx = 0;
+    offset = BLOCK_SIZE / 2; // second half of the array full
+    isBuffer2Full = 1;
   } else {
+    if (z_idx == BLOCK_SIZE/2 - 1) {
+      offset = 0; // first half of the array full
+      isBuffer1Full = 1;
+    } 
     z_idx++;
   }
   accel.getXYZ(x,y,z); // quantized data from accelerometer (in counts)
