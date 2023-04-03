@@ -88,6 +88,11 @@ static float32_t z_data2[BLOCK_SIZE];
 int offset = -1;
 bool isBuffer1Full = 0, isBuffer2Full = 0;
 
+///////////////////// For Fall detection ///////////////////////
+static float32_t y_data1[BLOCK_SIZE] = {0};
+static float32_t y_data2[BLOCK_SIZE] = {0};
+int y_idx = 0;
+////////////////////////////////////////////////////////////////
 // initialize variables used for debugging
 int iteration = 0;
 // unsigned long duration; // in ms
@@ -296,9 +301,42 @@ static void threadC( void *pvParameters )
    SERIAL.println("Thread C: END");
    vTaskSuspend(NULL);
   }
-
+  
 }
 
+
+static void threadD( void *pvParameters ) 
+{
+
+  const float fallThreshold = -1.0; // Adjust this value based on your requirements
+  TickType_t lastWakeTime = xTaskGetTickCount();
+
+  while (1) {
+    // Check if either buffer is full
+    if (isBuffer1Full || isBuffer2Full) {
+      // Choose the appropriate buffer based on the current array
+      float32_t *curr_array = prev_array ? &y_data1[0] : &y_data2[0];
+
+      // Get the latest y-axis value from the array
+      float latestYValue = *(curr_array + y_idx);
+
+      // Check if the latest y-axis value is below the threshold
+      if (latestYValue < fallThreshold) {
+        // Fall detected, perform required action here
+        Serial.println("Fall detected!");
+      }
+
+      // Reset the buffer full flags
+      isBuffer1Full = 0;
+      isBuffer2Full = 0;
+    }
+
+    // Delay the thread execution
+    vTaskDelayUntil(&lastWakeTime, 10);
+  }
+}
+
+}
 
 
 
@@ -426,6 +464,7 @@ void setup()
   xTaskCreate(threadA,     "Task A",       256, NULL, tskIDLE_PRIORITY + 3, &Handle_aTask);
   xTaskCreate(threadB,     "Task B",       256, NULL, tskIDLE_PRIORITY + 2, &Handle_bTask);
   xTaskCreate(threadC,     "Task C",       256, NULL, tskIDLE_PRIORITY + 1, &Handle_cTask);
+  xTaskCreate(threadC,     "Task D",       256, NULL, tskIDLE_PRIORITY + 0, &Handle_dTask);
   
   //xTaskCreate(taskMonitor, "Task Monitor", 256, NULL, tskIDLE_PRIORITY + 1, &Handle_monitorTask);
 
@@ -433,6 +472,7 @@ void setup()
  // vTaskSuspend(Handle_aTask);
   vTaskSuspend(Handle_bTask);
   vTaskSuspend(Handle_cTask);
+  vTaskSuspend(Handle_dTask);
   vTaskStartScheduler();
 
   // error scheduler failed to start
