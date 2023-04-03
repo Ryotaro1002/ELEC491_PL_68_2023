@@ -88,11 +88,6 @@ static float32_t z_data2[BLOCK_SIZE];
 int offset = -1;
 bool isBuffer1Full = 0, isBuffer2Full = 0;
 
-///////////////////// For Fall detection ///////////////////////
-static float32_t y_data1[BLOCK_SIZE] = {0};
-static float32_t y_data2[BLOCK_SIZE] = {0};
-int y_idx = 0;
-////////////////////////////////////////////////////////////////
 // initialize variables used for debugging
 int iteration = 0;
 // unsigned long duration; // in ms
@@ -120,6 +115,7 @@ int iteration = 0;
 TaskHandle_t Handle_aTask;
 TaskHandle_t Handle_bTask;
 TaskHandle_t Handle_cTask;
+TaskHandle_t Handle_dTask;
 //TaskHandle_t Handle_monitorTask;
 
 //**************************************************************************
@@ -312,27 +308,21 @@ static void threadD( void *pvParameters )
   TickType_t lastWakeTime = xTaskGetTickCount();
 
   while (1) {
-    // Check if either buffer is full
-    if (isBuffer1Full || isBuffer2Full) {
-      // Choose the appropriate buffer based on the current array
-      float32_t *curr_array = prev_array ? &y_data1[0] : &y_data2[0];
-
-      // Get the latest y-axis value from the array
-      float latestYValue = *(curr_array + y_idx);
-
+      float32_t latestYValue = y * ADXL343_MG2G_MULTIPLIER;
       // Check if the latest y-axis value is below the threshold
-      if (latestYValue < fallThreshold) {
-        // Fall detected, perform required action here
-        Serial.println("Fall detected!");
+      if (latestYValue > fallThreshold) {
+          // Fall detected, perform required action here
+          Serial.println("Fall detected!");
+
+          // Wait for the reset button to be pressed
+          while (!resetButtonPressed()) {
+              // Delay the thread execution
+              vTaskDelayUntil(&lastWakeTime, 10);
+          }
       }
 
-      // Reset the buffer full flags
-      isBuffer1Full = 0;
-      isBuffer2Full = 0;
-    }
-
-    // Delay the thread execution
-    vTaskDelayUntil(&lastWakeTime, 10);
+      // Delay the thread execution
+      vTaskDelayUntil(&lastWakeTime, 10);
   }
 }
 
