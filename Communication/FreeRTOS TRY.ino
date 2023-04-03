@@ -88,7 +88,7 @@ static float32_t z_data2[BLOCK_SIZE];
 int offset = -1;
 bool isBuffer1Full = 0, isBuffer2Full = 0;
 
-int fall_counter;
+int fall_counter = 0;
 // initialize variables used for debugging
 int iteration = 0;
 // unsigned long duration; // in ms
@@ -311,11 +311,12 @@ static void threadD( void *pvParameters )
       float32_t latestYValue = y * ADXL343_MG2G_MULTIPLIER;
       // Check if the latest y-axis value is below the threshold
       if (latestYValue > fallThreshold) {
-          fall_count += 1;
+          fall_counter += 1;
      
-          if (fall_count == 2){
+          if (fall_counter == 2){
             // Fall detected, perform required action here
             Serial.println("Fall detected!");
+            fall_counter = 0;
 
             // Wait for the reset button to be pressed
             while (!resetButtonPressed()) {
