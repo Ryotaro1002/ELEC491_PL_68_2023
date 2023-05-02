@@ -1,4 +1,4 @@
 # README
-Integrated Arduino sketch (i.e., detection algorithm + state machine) will be uploaded here.
+Integrated Arduino sketch (i.e., detection algorithm + communication system) are uploaded here.
 
-(02/03/2023 Ryotaro)
+(02/05/2023 Ryotaro)
