@@ -8,4 +8,8 @@ This folder contains the following Arduino libraries required to run the collisi
 5. **WiFiNINA:** library to use the WiFi module on the Arduino. 
 6. **waveletDenoiserRev03:** custom-written library that performs wavelet denoising used in collision detection. See README in the folder for more detail. 
 
+## Licenses
+
 Libraries 1-5 are copies or a modified version of the libraries written by manufacturers and third parties. They are redistributed here as permitted by their respective licenses. 
+
+## About Library Versions
