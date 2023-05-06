@@ -18,7 +18,7 @@ Newer versions of the libraries may be released by the manufacturers in the futu
 
 You can check the library versions used by opening the "**library.properties**" file in each library folder. 
 
-If you are using the older/newer versions of **FreeRTOS_SAMD21** library, make sure to modify the config file as outlined below. 
+If you are using the older/newer versions of **FreeRTOS_SAMD21** library, make sure to modify the config file as outlined [below](https://github.com/Ryotaro1002/ELEC491_PL_68/blob/main/libraries/README.md#modification-in-freertos_samd21-library). 
 
 ## Modification in FreeRTOS_SAMD21 Library
 
