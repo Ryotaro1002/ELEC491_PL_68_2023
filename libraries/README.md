@@ -15,4 +15,4 @@ Libraries 1-5 are copies or a modified version of the libraries written by manuf
 ## About Library Versions
 
 Newer versions of the libraries may be released by the manufacturers in the future. The code in the "Integrated Sketch" folder is run and tested with the versions of the libraries in this repository, and is not guaranteed to run correctly with the older/newer versions. 
-You can check the library versions used by opening the "library.properties" file in each library folder. 
+You can check the library versions used by opening the "**library.properties**" file in each library folder. 
