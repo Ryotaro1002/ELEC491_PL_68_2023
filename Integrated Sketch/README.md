@@ -13,6 +13,10 @@ There are two versions of the sketches:
 
 Pick the version that suits your needs, and upload it to Arduino. 
 
+## Before Use
+
+
+
 ## Required Libraries
 
 Required libraries are saved in **libraries** folder in this repository. 
