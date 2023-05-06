@@ -23,4 +23,4 @@ If you are using the older/newer versions of **FreeRTOS_SAMD21** library, make s
 ## Modification in FreeRTOS_SAMD21 Library
 
 All third-party libraries are unmodified except for FreeRTOS_SAMD21 library. One modification is made for our application: 
-- In FreeRTOS_SAMD21/src/**FreeRTOSConfig.h**, 'configTICK_RATE_HZ' is set to 4000 (default is 1000). 
+- In FreeRTOS_SAMD21/src/**FreeRTOSConfig.h**, `configTICK_RATE_HZ` is set to `4000` (default is `1000`). 
