@@ -1,4 +1,2 @@
 # README
-All libraries needed to run will be uploaded here. 
-
-(Updated 02/03/2023 Ryotaro)
+This folder contains unused libraries that were developed throughout the project. 
