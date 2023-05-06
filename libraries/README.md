@@ -14,6 +14,13 @@ Libraries 1-5 are copies or a modified version of the libraries written by manuf
 
 ## About Library Versions
 
-Newer versions of the libraries may be released by the manufacturers in the future. The code in the "Integrated Sketch" folder is run and tested with the versions of the libraries in this repository, and is not guaranteed to run correctly with the older/newer versions. 
+Newer versions of the libraries may be released by the manufacturers in the future. The code in the "Integrated Sketch" folder is run and tested with the versions of the libraries saved in this repository, and is not guaranteed to run correctly with the older/newer versions. 
 
 You can check the library versions used by opening the "**library.properties**" file in each library folder. 
+
+If you are using the older/newer versions of **FreeRTOS_SAMD21** library, make sure to modify the config file as outlined below. 
+
+## Modification in FreeRTOS_SAMD21 Library
+
+All third-party libraries are unmodified except for FreeRTOS_SAMD21 library. One modification is made for our application: 
+- In FreeRTOS_SAMD21/src/**FreeRTOSConfig.h**, 'configTICK_RATE_HZ' is set to 4000 (default is 1000). 
