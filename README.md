@@ -1,8 +1,6 @@
 # ELEC491 Capstone PL-68 (2022/23W)
-This is the repository for team PL-68 in ELEC 491 Capstone project (2022/23W). 
+This is the repository for Project 68 in ELEC 491 Capstone project at the University of British Columbia (2022/23W). 
 
-During the project, this repo will be used to develop and share code. 
-
-At the end of the term, plan is to upload all files including Key Documents, CAD files, other deliverables such as User Manual, etc. 
-
-(Updated 02/03/2023 Ryotaro)
+**Project Name: ** Designing Window Sensors to Advance Bird- Friendly
+and Energy Saving Building Design Strategies on UBC
+Vancouver Campus
