@@ -111,17 +111,15 @@ int i_detected = -1, i_flagset = -1, t_end = -1; // index when the detection alg
 // Type Defines and Constants
 //**************************************************************************
 
-#define  ERROR_LED_PIN  13 //Led Pin: Typical Arduino Board
-//#define  ERROR_LED_PIN  2 //Led Pin: samd21 xplained board
+#define ERROR_LED_PIN 13 //Led Pin: Typical Arduino Board
+//#define ERROR_LED_PIN 2 //Led Pin: samd21 xplained board
 
-#define ERROR_LED_LIGHTUP_STATE  HIGH // the state that makes the led light up on your board, either low or high
+#define ERROR_LED_LIGHTUP_STATE HIGH // the state that makes the led light up on your board, either low or high
 
 // Select the serial port the project should use and communicate over
 // Some boards use SerialUSB, some use Serial
-#define SERIAL          SerialUSB //Sparkfun Samd21 Boards
-//#define SERIAL          Serial //Adafruit, other Samd21 Boards
-
-
+#define SERIAL SerialUSB //Sparkfun Samd21 Boards
+//#define SERIAL Serial //Adafruit, other Samd21 Boards
 
 //**************************************************************************
 // global variables
@@ -152,19 +150,18 @@ void myDelayMsUntil(TickType_t *previousWakeTime, int ms)
   vTaskDelayUntil( previousWakeTime, (ms * 1000) / portTICK_PERIOD_US );  
 }
 
-//void vTaskDelayUntil( TickType_t *pxPreviousWakeTime, const TickType_t xTimeIncrement );
-//*****************************************************************
-// Create a thread that prints out A to the screen every two seconds
-// this task will delete its self after printing out afew messages
-//*****************************************************************
+/*
+  Task 1: accelerometer sampling
+  - reads accelerometer at 400Hz and stores new data point into appropriate buffer array
+*/
 static void task1( void *pvParameters ) 
 {
-  
-     TickType_t lastWakeTime = xTaskGetTickCount();
-    
- while(1){
+  TickType_t lastWakeTime = xTaskGetTickCount(); 
+
+  while (1)
+  {
     //Serial.println("Thread A: Started"+String(z_idx));
-      if (z_idx == BLOCK_SIZE - 1) {
+    if (z_idx == BLOCK_SIZE - 1) {
       z_idx = IDX_OFFSET;
       if (prev_array) {
         isBuffer0Full = 1;
@@ -176,7 +173,7 @@ static void task1( void *pvParameters )
         curr_array = &z_data0[0];
       }
       Serial.println("Task 1: 256 samples collected");
-      vTaskResume(Handle_bTask);
+      vTaskResume(Handle_bTask); // resume detection algorithm task
     } else {
       z_idx++;
     }
@@ -190,7 +187,7 @@ static void task1( void *pvParameters )
     accel.getXYZ(x,y,z); // quantized data from accelerometer (in counts)
     // z_data[z_idx] = z * ADXL343_MG2G_MULTIPLIER;
     *(curr_array + z_idx) = z * ADXL343_MG2G_MULTIPLIER;
-    // save last few samples to the next array as well
+    // save last 15 samples to the next array as well
     if (z_idx >= TOT_DELAY) {
       if (prev_array) {
         z_data1[z_idx - TOT_DELAY] = z * ADXL343_MG2G_MULTIPLIER;
@@ -198,310 +195,272 @@ static void task1( void *pvParameters )
         z_data0[z_idx - TOT_DELAY] = z * ADXL343_MG2G_MULTIPLIER;
       }
     }
-      //SERIAL.println("Thread A: Stop");
-      vTaskDelayUntil(&lastWakeTime,10);
-      if (fall_counter == 1){
+    //SERIAL.println("Thread A: Stop");
+    vTaskDelayUntil(&lastWakeTime, 10);
+    // would it ever get to this point? (May 14, 2023 Ryotaro)
+    if (fall_counter == 1) {
       lastWakeTime = xTaskGetTickCount();
       fall_counter == 0;
-      } else if (senddata_counter == 1){
-        lastWakeTime = xTaskGetTickCount();
-        senddata_counter == 0;
-        
-        
-       }
-      
-    }
-      
-  }
+    } else if (senddata_counter == 1) {
+      lastWakeTime = xTaskGetTickCount();
+      senddata_counter == 0;
+    }  
+  }      
+}
 
-
-   
-
-//*****************************************************************
-// Create a thread that prints out B to the screen every second
-// this task will run forever
-//*****************************************************************
+/*
+  Task 2: detection algorithm
+  - once task 1 collects 256 samples from accelerometer, denoises them and pass them thru detection logic
+*/
 static void task2( void *pvParameters ) 
 {
   //SERIAL.println("Thread B: Started");
 
   while(1)
   {
-     Serial.println("Task 2: Detection algorithm begin");
-     if (isBuffer0Full && isBuffer1Full) {
-    Serial.println("Error case: both buffers full");
-    while(1){};
-  } else if (isBuffer0Full || isBuffer1Full) {
-    // Serial.print("Detection algorithm begin"); // for debugging only
-    // reset detected flag
-    detected = 0;  
-
-    float32_t *input;
-    if (isBuffer0Full) {
-      //Serial.println("Buffer 0 used"); // for debugging only
-      input = &z_data0[0];
-    } else if (isBuffer1Full) {
-      //Serial.println("Buffer 1 used"); // for debugging only
-      input = &z_data1[0];
-    } else {
-      Serial.println("Error case: neither buffer is full"); // for debugging only
+    Serial.println("Task 2: Detection algorithm begin");
+    if (isBuffer0Full && isBuffer1Full) {
+      Serial.println("Error case: both buffers full");
       while(1){};
-    }
+    } else if (isBuffer0Full || isBuffer1Full) {
+      // Serial.print("Detection algorithm begin"); // for debugging only
+      // reset detected flag
+      detected = 0;  
 
-    float32_t *denoised = &output[0];    
-
-    // wavelet denoising
-    //unsigned long denoise_start = micros(); // for debugging only
-    // Serial.print("Denoising begin");
-    wDenoise(input, denoised);
-    // Serial.print("Denoising end");
-    //unsigned long denoise_end = micros(); // for debugging only
-
-    // detection logic
-    for (int i = IDX_OFFSET; i < BLOCK_SIZE; i++) {
-      if (flag == 1) {
-        if (below_score > below_threshold) {
-          //Serial.println("Flag lifted"); // for debugging only
-          //Serial.println(impact_score); // for debugging only
-          i_detected = micros(); // for debugging only
-          flag = 0;
-          break;
-        }
-      }
-      if (abs(*(denoised + i)) > g_threshold) {
-        if (!flag) {
-          //Serial.println("Flag set"); // for debugging only
-          flag = 1;
-          prev_idx = i;
-          //Serial.println(prev_idx); // for debugging only
-          if (i_flagset == -1) {i_flagset = micros();} // for debugging only
-        } else {
-          if (abs(i - prev_idx) < prox_threshold) {
-           // Serial.println("impact_score++"); // for debugging only
-            impact_score++;
-          }
-          prev_idx = i;
-        }
+      float32_t *input;
+      if (isBuffer0Full) {
+        //Serial.println("Buffer 0 used"); // for debugging only
+        input = &z_data0[0];
+      } else if (isBuffer1Full) {
+        //Serial.println("Buffer 1 used"); // for debugging only
+        input = &z_data1[0];
       } else {
-        if (flag) {
-          if (abs(i - prev_below_idx) == 1) {
-            below_score++;
+        Serial.println("Error case: neither buffer is full"); // for debugging only
+        while(1){};
+      }
+
+      float32_t *denoised = &output[0];    
+
+      // wavelet denoising
+      //unsigned long denoise_start = micros(); // for debugging only
+      // Serial.print("Denoising begin");
+      wDenoise(input, denoised);
+      // Serial.print("Denoising end");
+      //unsigned long denoise_end = micros(); // for debugging only
+
+      // detection logic
+      for (int i = IDX_OFFSET; i < BLOCK_SIZE; i++) {
+        if (flag == 1) {
+          if (below_score > below_threshold) {
+            //Serial.println("Flag lifted"); // for debugging only
+            //Serial.println(impact_score); // for debugging only
+            i_detected = micros(); // for debugging only
+            flag = 0;
+            break;
+          }
+        }
+        if (abs(*(denoised + i)) > g_threshold) {
+          if (!flag) {
+            //Serial.println("Flag set"); // for debugging only
+            flag = 1;
+            prev_idx = i;
+            //Serial.println(prev_idx); // for debugging only
+            if (i_flagset == -1) {i_flagset = micros();} // for debugging only
           } else {
-            below_score = 0;
+            if (abs(i - prev_idx) < prox_threshold) {
+              // Serial.println("impact_score++"); // for debugging only
+              impact_score++;
+            }
+            prev_idx = i;
           }
+        } else {
+          if (flag) {
+            if (abs(i - prev_below_idx) == 1) {
+              below_score++;
+            } else {
+              below_score = 0;
+            }
+          }
+          prev_below_idx = i;
         }
-        prev_below_idx = i;
+        if (i == BLOCK_SIZE - 1) {
+          prev_idx -= BLOCK_SIZE;
+          prev_below_idx -= BLOCK_SIZE; 
+        }
       }
-      if (i == BLOCK_SIZE - 1) {
-        prev_idx -= BLOCK_SIZE;
-        prev_below_idx -= BLOCK_SIZE; 
-      }
-    }
 
-    if (!flag) {
-      if (impact_score >= score_threshold) {
-        detected = 1;
-        Serial.println("detected"); // for debugging only
-        gettime();
-        // in the integrated detection algorithm, the current time is saved to indicate a collision time
+      if (!flag) {
+        if (impact_score >= score_threshold) {
+          detected = 1;
+          Serial.println("detected"); // for debugging only
+          gettime();
+          // in the integrated detection algorithm, the current time is saved to indicate a collision time
+        } else {
+          detected = 0;
+        } 
+        // reset score metrics
+        impact_score = 0;
+        below_score = 0;
+      }
+
+      // clear buffer full flag
+      if (isBuffer0Full == 1 && isBuffer1Full == 0) {
+        isBuffer0Full = 0;
+      } else if (isBuffer0Full == 0 && isBuffer1Full == 1) {
+        isBuffer1Full = 0;
       } else {
-        detected = 0;
-      } 
-      // reset score metrics
-      impact_score = 0;
-      below_score = 0;
-    }
-
-    // clear buffer full flag
-    if (isBuffer0Full == 1 && isBuffer1Full == 0) {
-      isBuffer0Full = 0;
-    } else if (isBuffer0Full == 0 && isBuffer1Full == 1) {
-      isBuffer1Full = 0;
-    } else {
-      Serial.print("Error case: both buffers are full");
-      while(1){};
-    }
-
-    }
-  /*
-    int ent = (rtc.getMinutes());
-  
-    if ((ent - last_timer)< 0 ){
-       difference = (ent - last_timer) + 60;
-    } else{
-      difference = (ent - last_timer);
+        Serial.print("Error case: both buffers are full");
+        while(1){};
       }
-      
-    Serial.println(ent - last_timer);
-    */
-    /*
-    if (((difference) == 3) && (!flaggg)){
-      flaggg = 1;
-      //vTaskSuspend(Handle_aTask);
-      vTaskSuspend(Handle_aTask);
-      vTaskResume(Handle_cTask);
-    }*/
+    }
     
     vTaskSuspend(NULL);
   }
 }
 
-
+/*
+  Task 4: send data to ThingSpeak
+*/
 static void task4( void *pvParameters ) 
 {
-  
-    TickType_t lastWakeTimeeee = xTaskGetTickCount();
+  TickType_t lastWakeTimeeee = xTaskGetTickCount();
  
   while(1)
   {
-      vTaskSuspend(Handle_bTask);
-      vTaskSuspend(Handle_aTask);
-      Serial.println("Task 4: Sending data to ThingSpeak start");
-      senddata_counter = 1;
-      Serial.println(count);
-      //last_timer = rtc.getMinutes();
+    vTaskSuspend(Handle_bTask);
+    vTaskSuspend(Handle_aTask);
+    Serial.println("Task 4: Sending data to ThingSpeak start");
+    senddata_counter = 1;
+    Serial.println(count);
+    //last_timer = rtc.getMinutes();
+    //flagggg = 0;
+    //flaggg = 0;
+    //Serial.println(last_timer);
+    delay(10000);
+  
+    if ((count + check_count) != check_count){
+      ThingSpeak.begin(client); 
+      Serial.println("start1");
+      collision_data[count] = (count + check_count);
+      count = count + 1;
+      i = 0;
+        
+      while (i < count){    
+        Serial.println("Loop" +  String(i));
+        dataa = collision_data[i];  
+         
+        int x = ThingSpeak.writeField(tempChannelNumber, wirteFieldNumber, dataa, myWriteAPIKey);
+         
+        if (x != 200){
+          Serial.println("Problem updating channel. HTTP error code " + String(x));
+          delay(80000);     
+          int x = ThingSpeak.writeField(tempChannelNumber, wirteFieldNumber, dataa, myWriteAPIKey);
+        }
+          
+        Serial.println("Updating channel. HTTP code " + String(x));
+        i = i + 1;
+        if (i < count){
+          delay(80000);
+        }
+      }
+    
+      collision_data[12] = {};
+      check_count = (check_count + count - 1);
       //flagggg = 0;
       //flaggg = 0;
-      //Serial.println(last_timer);
-      delay(10000);
-      
-      if ((count+check_count) != check_count){
-        ThingSpeak.begin(client); 
-        Serial.println("start1");
-        collision_data[count] = (count+check_count);
-        count = count +1;
-        i = 0;
-        
-        while (i < count){
-          
-          Serial.println("Loop" +  String(i));
-          dataa = collision_data[i];  
-         
-          int x = ThingSpeak.writeField(tempChannelNumber, wirteFieldNumber, dataa, myWriteAPIKey);
-         
-          if (x != 200){
-            Serial.println("Problem updating channel. HTTP error code " + String(x));
-            delay(80000);     
-            int x = ThingSpeak.writeField(tempChannelNumber, wirteFieldNumber, dataa, myWriteAPIKey);
-          }
-          
-          Serial.println("Updating channel. HTTP code " + String(x));
-          i = i+1;
-          if (i < count){
-              delay(80000);
-            }
-         }
-    
-        collision_data[12] = {};
-        check_count = (check_count+count - 1);
-        //flagggg = 0;
-        //flaggg = 0;
-        count = 0;
- 
-      }
-        //last_timer = rtc.getMinutes();
-        //flagggg = 0;
-        //flaggg = 0;
-        //Serial.println(last_timer);
-        //vTaskResume(Handle_aTask); // suspends thread C
-        //vTaskResume(Handle_bTask);
-        Serial.println("Task 4: Sending data to ThingSpeak End");
-        vTaskResume(Handle_aTask);
-        vTaskResume(Handle_bTask);
-       vTaskDelayUntil(&lastWakeTimeeee, 1200000);
-       if (fall_counter == 1){
-        lastWakeTimeeee = xTaskGetTickCount();
-       }
-   
+      count = 0;
+    }
+    //last_timer = rtc.getMinutes();
+    //flagggg = 0;
+    //flaggg = 0;
+    //Serial.println(last_timer);
+    //vTaskResume(Handle_aTask); // suspends thread C
+    //vTaskResume(Handle_bTask);
+    Serial.println("Task 4: Sending data to ThingSpeak End");
+    vTaskResume(Handle_aTask);
+    vTaskResume(Handle_bTask);
+    vTaskDelayUntil(&lastWakeTimeeee, 1200000);
+    if (fall_counter == 1){
+      lastWakeTimeeee = xTaskGetTickCount();
+    }
   }
-
 }
 
-
-
-
+/*
+  Task 3: accelerometer fall detection
+  - check accelerometer's y position every 5 minutes
+  - report a fall if the value is below a threshold twice in a row (i.e., for at least 10 minutes)
+*/
 static void task3( void *pvParameters ) 
 {
- 
- const float fallThreshold = 0.5; // Adjust this value based on your requirements
+  const float fallThreshold = 0.5; // adjust this value based on your requirements
   TickType_t lastWakeTimee = xTaskGetTickCount();
 
-  while (1) {
-      Serial.println("Task 3: Fall Detection Test");
-      float32_t latestYValue = y * ADXL343_MG2G_MULTIPLIER;
-      Serial.println("Accelerometer Y value:" + String(latestYValue));
+  while(1)
+  {
+    Serial.println("Task 3: Fall Detection Test");
+    float32_t latestYValue = y * ADXL343_MG2G_MULTIPLIER; // use y value read in Task 1
+    Serial.println("Accelerometer Y value:" + String(latestYValue));
       
-      
-      
-      
-      if (check_fall == 1){
-         if (latestYValue < fallThreshold) {
-            //Serial.println("Fall detected!");
-            // Wait for the reset button to be pressed
-            while (1) {
-                // Delay the thread execution
-               vTaskSuspend(Handle_aTask);
-               vTaskSuspend(Handle_bTask);
-               vTaskSuspend(Handle_cTask);
-               Serial.println("Still not Press Reset Button Yet");
+    if (check_fall == 1) {
+      if (latestYValue < fallThreshold) {
+        //Serial.println("Fall detected!");
+        // Wait for the reset button to be pressed
+        while (1) {
+          // Delay the thread execution
+          vTaskSuspend(Handle_aTask);
+          vTaskSuspend(Handle_bTask);
+          vTaskSuspend(Handle_cTask);
+          Serial.println("Still not Press Reset Button Yet");
         
-                   if (fall_counter == 0){
-                    
-                   ThingSpeak.begin(client); 
-                   Serial.println("FALL EMAIL");
-                    int x = ThingSpeak.writeField(tempChannelNumber, FailFieldNumber, 1, myWriteAPIKey);
+          if (fall_counter == 0){
+            ThingSpeak.begin(client); 
+            Serial.println("FALL EMAIL");
+            int x = ThingSpeak.writeField(tempChannelNumber, FailFieldNumber, 1, myWriteAPIKey);
                    
-                    if (x != 200){
-                      Serial.println("Problem updating channel. HTTP error code " + String(x));
-                      delay(80000);     
-                      int x = ThingSpeak.writeField(tempChannelNumber, FailFieldNumber, 1, myWriteAPIKey);
-                    }
+            if (x != 200){
+              Serial.println("Problem updating channel. HTTP error code " + String(x));
+              delay(80000);     
+              int x = ThingSpeak.writeField(tempChannelNumber, FailFieldNumber, 1, myWriteAPIKey);
+            }
                     
-                    Serial.println("Updating channel. HTTP code " + String(x));
-                    fall_counter = 1;
-                   }
+            Serial.println("Updating channel. HTTP code " + String(x));
+            fall_counter = 1;
+          }
 
-                   buttonState = digitalRead(0);
-                   Serial.print(buttonState);
-                    // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
-                    if (buttonState == HIGH) {
-                      check_fall = 0;
-                      Serial.println("Reset Press");
-                      Serial.println("Resume Task B and C First");
-                      vTaskResume(Handle_bTask);
-                      vTaskResume(Handle_cTask);
-                      vTaskDelay(20000);
-                      Serial.println("Resume Task A 5 sec Later");
-                      vTaskResume(Handle_aTask);
-                      break;
-                    } 
-                  }
-                
-          }else {
+          buttonState = digitalRead(0);
+          Serial.print(buttonState);
+          // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
+          if (buttonState == HIGH) {
             check_fall = 0;
-      
-          }
-        
-        
-        }else {
-          if (latestYValue < fallThreshold) {
-            check_fall = check_fall+1;
-            Serial.println("Fall" + String(check_fall));
-            
-            }else{
-              check_fall =0;
-              
-              }
-          }
-   //Serial.println("Check fall counter:" + String(check_fall));     
-   Serial.println("Task 3: Fall Detection Test END");
-   vTaskDelayUntil(&lastWakeTimee, 1200000);//1200000 5min // 480000 5sec
-   if (fall_counter == 1){
-    lastWakeTimee = xTaskGetTickCount();
+            Serial.println("Reset Press");
+            Serial.println("Resume Task B and C First");
+            vTaskResume(Handle_bTask);
+            vTaskResume(Handle_cTask);
+            vTaskDelay(20000);
+            Serial.println("Resume Task A 5 sec Later");
+            vTaskResume(Handle_aTask);
+            break;
+          } 
+        }   
+      } else {
+        check_fall = 0;
+      }
+    } else {
+      if (latestYValue < fallThreshold) {
+        check_fall = check_fall + 1;
+        Serial.println("Fall" + String(check_fall));
+      } else {
+        check_fall = 0;
+      }
     }
-   
+    //Serial.println("Check fall counter:" + String(check_fall));     
+    Serial.println("Task 3: Fall Detection Test END");
+    vTaskDelayUntil(&lastWakeTimee, 1200000); //1200000 = 5min // 480000 5sec
+    if (fall_counter == 1) {
+      lastWakeTimee = xTaskGetTickCount();
+    }
   }
-  
 }
 
 
