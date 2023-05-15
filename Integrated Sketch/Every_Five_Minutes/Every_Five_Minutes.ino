@@ -7,35 +7,42 @@
 //
 //**************************************************************************
 
-#include <WiFiNINA.h>
-#include <RTCZero.h>
-#include <SPI.h>
-RTCZero rtc;
+/* 
+  Required libraries
+*/
 
-#include <FreeRTOS_SAMD21.h>
+// include required libraries - see "libraries" folder on GitHub repository
+#include <WiFiNINA.h> // WiFi library for Arduinos with Nina module
+#include <RTCZero.h> // RTC library
+#include <SPI.h> // is this needed? Check (May 14, 2023 Ryotaro)
+RTCZero rtc; // declare RTC object
 
-#include <Wire.h>
+#include <FreeRTOS_SAMD21.h> // FreeRTOS port for SAMD21 MCUs
+
+// libraries required for Adafruit ADXL343 Evaluation board
+#include <Wire.h> 
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL343.h>
 
-// include files for wavelet denoising
-#include "waveletDenoiser.h"
-static float32_t output[BLOCK_SIZE];
+#include "waveletDenoiser.h" // library for wavelet denoising
+static float32_t output[BLOCK_SIZE]; // output array for wavelet denoising
 
 // define global constants
-Adafruit_ADXL343 accel = Adafruit_ADXL343(12345); // Assign a unique ID to sensor (taken from example)
+Adafruit_ADXL343 accel = Adafruit_ADXL343(12345); // assign a unique ID to sensor (taken from example)
 
 int fallllll = 0;
-int fall_counter=0;
+int fall_counter = 0;
 int senddata_counter = 0;
-// Include WiFiNINA libraries.
 
-char ssid[] = "ubcvisitor";    // your network SSID (name)
-char pass[] = "";    // your network password (use for WPA, or use as key for WEP)
+// WiFi credential 
+// Note to future developers: this is actually a bad practice! It is recommended 
+// to keep your WiFi credential to a separate .h file and include it!
+char ssid[] = "ubcvisitor"; // your network SSID (name)
+char pass[] = ""; // your network password (use for WPA, or use as key for WEP)
 
-int status = WL_IDLE_STATUS;  // the Wifi radio's status
+int status = WL_IDLE_STATUS; // the WiFi radio's status
 
-int state;   //used for state machine
+int state; //used for state machine
 int collision_data[12];
 int collision_data1[12];
 int check_fall = 0; //= 0
@@ -56,23 +63,21 @@ int hourrr=0;
 int flagggg = 0;
 int flaggg = 0;
 int difference = 0;
-int buttonState = 0;         // variable for reading the pushbutton status
+int buttonState = 0; // variable for reading the pushbutton status
 
-//  Thingspeak libraries.
+// Thingspeak library
 #include "ThingSpeak.h" // always include thingspeak header file after other header files and custom macros
-WiFiClient  client;
+WiFiClient client;
 
-//Read/Send data from thingspeak
+// ThingSpeak channel information (update this as needed)
 unsigned long tempChannelNumber = 2026263;
 const char * myWriteAPIKey = "WN6UZKY58ABMJW89";
 unsigned int wirteFieldNumber = 6;
 unsigned int FailFieldNumber = 7;
-/*-----------------------------------------------------------------*/
-//*************************************************************************
-//static float32_t output[BLOCK_SIZE];
 
-// define global constants
-// Adafruit_ADXL343 accel = Adafruit_ADXL343(12345); // Assign a unique ID to sensor (taken from example)
+/* 
+  Constants and variables for detection algorithm
+*/
 
 // constants - thresholds
 const double g_threshold = 0.1; // detection threshold
