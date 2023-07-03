@@ -4,7 +4,6 @@
 //
 // This code uses a tick frequency of 4000Hz, and each tick lasts 250us.
 // 80000 ticks = 20 seconds
-//
 //**************************************************************************
 
 /* 
@@ -28,9 +27,9 @@ RTCZero rtc; // declare RTC object
 static float32_t output[BLOCK_SIZE]; // output array for wavelet denoising
 
 // define global constants
-Adafruit_ADXL343 accel = Adafruit_ADXL343(12345); // assign a unique ID to sensor (taken from example)
+Adafruit_ADXL343 accel = Adafruit_ADXL343(12345); // assign a unique ID to sensor
 
-int fallllll = 0;
+int fallllll = 0; // ToDo: is this variable actually used? (July 3, 2023 Ryotaro)
 int fall_counter = 0;
 int senddata_counter = 0;
 
@@ -42,7 +41,7 @@ char pass[] = ""; // your network password (use for WPA, or use as key for WEP)
 
 int status = WL_IDLE_STATUS; // the WiFi radio's status
 
-int state; //used for state machine
+int state; //used for state machine <= is this an old variable? (July 3, 2023 Ryotaro)
 int collision_data[12];
 int collision_data1[12];
 int check_fall = 0; //= 0
@@ -437,7 +436,7 @@ static void task3( void *pvParameters )
             Serial.println("Resume Task B and C First");
             vTaskResume(Handle_bTask);
             vTaskResume(Handle_cTask);
-            vTaskDelay(20000);
+            vTaskDelay(20000); // wait to resume task 1 (accelerometer sampling) so task 2 (detection algorithm) has time to finish processing any old data before fall was detected
             Serial.println("Resume Task A 5 sec Later");
             vTaskResume(Handle_aTask);
             break;
@@ -462,10 +461,6 @@ static void task3( void *pvParameters )
     }
   }
 }
-
-
-
-
 
 //*****************************************************************
 // Task will periodically print out useful information about the tasks running
@@ -552,26 +547,24 @@ void taskMonitor(void *pvParameters)
 
 void setup() 
 {
+  pinMode(0, INPUT); // digital pin 0 is used for external reset button
 
- pinMode(0, INPUT);
-
-  SERIAL.begin(9600);
+  // open serial communication (only for debugging)
+  SERIAL.begin(9600); 
 
   delay(1000); // prevents usb driver crash on startup, do not omit this
-  while (!SERIAL) ;  // Wait for serial terminal to open port before starting program
-/*
+  // while (!SERIAL) ;  // Wait for serial terminal to open port before starting program (comment this out if the Arduino is not connected to a computer)
+
+  /*
   SERIAL.println("");
   SERIAL.println("******************************");
   SERIAL.println("        Program start         ");
   SERIAL.println("******************************");
   SERIAL.flush();*/
 
-//*****************************************************************
-  settuppacc();
-  connectWiFiNetwork();
-  settime();
-//*****************************************************************
-
+  settuppacc(); // initialize ADXL343 accelerometer and the wavelet denoising filterbank
+  connectWiFiNetwork(); // connect to WiFi network
+  settime(); // synchronize RTC used to keep track of time on Arduino
   
   // Set the led the rtos will blink when we have a fatal rtos error
   // RTOS also Needs to know if high/low is the state that turns on the led.
@@ -598,8 +591,8 @@ void setup()
   //xTaskCreate(taskMonitor, "Task Monitor", 256, NULL, tskIDLE_PRIORITY + 1, &Handle_monitorTask);
 
   // Start the RTOS, this function will never return and will schedule the tasks.
- // vTaskSuspend(Handle_aTask);
-  vTaskSuspend(Handle_bTask);
+  // vTaskSuspend(Handle_aTask);
+  vTaskSuspend(Handle_bTask); // task 2 is initially suspended
   //vTaskSuspend(Handle_cTask);
   //vTaskSuspend(Handle_dTask);
   vTaskStartScheduler();
@@ -612,7 +605,6 @@ void setup()
     SERIAL.flush();
     delay(1000);
   }
-
 }
 
 //*****************************************************************
@@ -621,56 +613,58 @@ void setup()
 //*****************************************************************
 void loop() 
 {
-    // Optional commands, can comment/uncomment below
-    SERIAL.print("."); //print out dots in terminal, we only do this when the RTOS is in the idle state
-    SERIAL.flush();
-    delay(500); //delay is interrupt friendly, unlike vNopDelayMS
+  // Optional commands, can comment/uncomment below
+  SERIAL.print("."); //print out dots in terminal, we only do this when the RTOS is in the idle state
+  SERIAL.flush();
+  delay(500); //delay is interrupt friendly, unlike vNopDelayMS
 }
-
 
 //*****************************************************************
 
-void settuppacc(){
-    filterBank_init();
+/*
+  Initialize ADXL343 accelerometer and the wavelet denoising filterbank
+*/
+void settuppacc()
+{
+  filterBank_init(); // initialize filterbank
   
-    // accelerometer initialization (taken from example)
+  // accelerometer initialization (taken from example)
   if (!accel.begin()) {
     Serial.println("ERROR: no ADXL343 detected - check wiring");
     while(1); 
   }
   accel.setRange(ADXL343_RANGE_16_G); // 2,4,8,16g configurable
-  accel.setDataRate(ADXL343_DATARATE_3200_HZ); // refer to Adafruit_ADXL343.h for values 
-  
-  }
+  accel.setDataRate(ADXL343_DATARATE_400_HZ); // refer to Adafruit_ADXL343.h for values 
+}
 
-
-
-void gettime(){
-     //Serial.println("Thread E: Started");
-   //vTaskResume(Handle_aTask);
-       char buffer [8];
-      uint8_t secc, mintt, hourr;
+/*
+  Synchronize RTC used to keep track of time on Arduino
+*/
+void gettime()
+{
+  //Serial.println("Thread E: Started");
+  //vTaskResume(Handle_aTask);
+  char buffer [8];
+  uint8_t secc, mintt, hourr;
       
-      if (rtc.getHours()<7){
-        hourr =(rtc.getHours()+17);
-        //int day = (rtc.getDay()-1);
-        }
-        else{
-        hourr =(rtc.getHours()-GMT);
-      }
-      mintt = rtc.getMinutes();
-      secc = rtc.getSeconds();
-    
-      sprintf (buffer, "%02u%02u%02u", hourr, mintt, secc); 
-      collisiondata = atoi((char *)buffer);
-      Serial.println(collisiondata);
-
-      collision_data[count] = collisiondata;
-      count = count+1;
-    
-   //Serial.println("Thread E: END");
-  
+  if (rtc.getHours()<7) {
+    hourr =(rtc.getHours()+17);
+    //int day = (rtc.getDay()-1);
+  } else {
+    hourr =(rtc.getHours()-GMT);
   }
+  mintt = rtc.getMinutes();
+  secc = rtc.getSeconds();
+    
+  sprintf (buffer, "%02u%02u%02u", hourr, mintt, secc); 
+  collisiondata = atoi((char *)buffer);
+  Serial.println(collisiondata);
+
+  collision_data[count] = collisiondata;
+  count = count+1;
+    
+  //Serial.println("Thread E: END");
+}
 
 /*-----------------------------------------------------------------*/
 /*-----------------------------------------------------------------*/
@@ -687,19 +681,19 @@ void gettime(){
  * void
  * 
  *****/
-void settime(){
+void settime()
+{
   rtc.begin(); // initialize RTC
   unsigned long epoch;
   epoch = WiFi.getTime();
 
   while (epoch == 0) {
     epoch = WiFi.getTime();
-    }
+  }
 
   //Serial.println(epoch);
   rtc.setEpoch(epoch);
   //Serial.println();
-  
   
   /*Serial.print(rtc.getDay());
   Serial.print("/");
@@ -707,13 +701,12 @@ void settime(){
   Serial.print("/");
   Serial.print(rtc.getYear());
   Serial.print(" ");
-*/
+  */
   
-  if (rtc.getHours()<7){
+  if (rtc.getHours()<7) {
     hourrr =(rtc.getHours()+17);
     //int day = (rtc.getDay()-1);
-    }
-    else{
+  } else {
     hourrr =(rtc.getHours()-GMT);
   }
   /*
@@ -726,12 +719,7 @@ void settime(){
 
   last_timer = rtc.getMinutes();
   Serial.println(last_timer);
-
- 
-  }
-
-
-
+}
 
 /*-----------------------------------------------------------------*/
 /*-----------------------------------------------------------------*/
@@ -750,9 +738,9 @@ void settime(){
  * 
  *****/
   
-void connectWiFiNetwork (void) {
-    
- // check for the WiFi module:
+void connectWiFiNetwork (void) 
+{
+  // check for the WiFi module:
   if (WiFi.status() == WL_NO_MODULE) {
     //Serial.println("Communication with WiFi module failed!");
     // don't continue
@@ -783,10 +771,9 @@ void connectWiFiNetwork (void) {
   printCurrentNet();
   printWifiData();
 
-  } // Close function.
+}
 
 /*-----------------------------------------------------------------*/
-
 /*****
  * Function definition:   printCurrentNet
  * 
@@ -801,8 +788,8 @@ void connectWiFiNetwork (void) {
  * void
  * 
  *****/
-
-void printCurrentNet() {
+void printCurrentNet() 
+{
   // print the SSID of the network you're attached to:
   Serial.print("SSID: ");
   Serial.println(WiFi.SSID());
@@ -823,11 +810,9 @@ void printCurrentNet() {
   Serial.print("Encryption Type:");
   Serial.println(encryption, HEX);
   Serial.println();
-
-} // Close function.
+}
 
 /*-----------------------------------------------------------------*/
-
 /*****
  * Function definition:   printWifiData
  * 
@@ -842,9 +827,8 @@ void printCurrentNet() {
  * void
  * 
  *****/
-
- void printWifiData() {
-  
+void printWifiData() 
+{ 
   // print your board's IP address:
   IPAddress ip = WiFi.localIP();
   Serial.print("IP Address: ");
@@ -856,11 +840,9 @@ void printCurrentNet() {
   WiFi.macAddress(mac);
   Serial.print("MAC address: ");
   printMacAddress(mac);
-
-} // Close function.
+}
 
 /*-----------------------------------------------------------------*/
-
 /*****
  * Function definition:   printMacAddress
  * 
@@ -875,27 +857,21 @@ void printCurrentNet() {
  * byte mac address
  * 
  *****/
-
-void printMacAddress(byte mac[]) {
-  
+void printMacAddress(byte mac[]) 
+{  
   for (int i = 5; i >= 0; i--) {
     if (mac[i] < 16) {
       Serial.print("0");
-    
-    } // Close if.
-    
+    }
+  
     Serial.print(mac[i], HEX);
     if (i > 0) {
-     Serial.print(":");
-    
-    } // Close if.
+      Serial.print(":");
+    }
+  }
   
-  } // Close for.
-  
- Serial.println();
-
-} // Close function.
-
+  Serial.println();
+}
 
 /*-----------------------------------------------------------------*/
 /*****
@@ -911,12 +887,10 @@ void printMacAddress(byte mac[]) {
  * 
  *****/
 
-void print2digits(int number) {
-
+void print2digits(int number) 
+{
   if (number < 10) {
-
     Serial.print("0");
-
   }
 
   Serial.print(number);
