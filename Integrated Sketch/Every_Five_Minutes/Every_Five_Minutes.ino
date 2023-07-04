@@ -29,9 +29,9 @@ static float32_t output[BLOCK_SIZE]; // output array for wavelet denoising
 // define global constants
 Adafruit_ADXL343 accel = Adafruit_ADXL343(12345); // assign a unique ID to sensor
 
-int fallllll = 0; // ToDo: is this variable actually used? (July 3, 2023 Ryotaro)
-int fall_counter = 0;
-int senddata_counter = 0;
+int fallllll = 0; // unused variable - ToDo: delete (July 4, 2023 Ryotaro)
+int fall_counter = 0; // used in task 3 as a flag to indicate whether the user was notified of a fall - ToDo: rename (July 4, 2023 Ryotaro)
+int senddata_counter = 0; // used in task 4 as a flag to indicate whether the data is being sent or not - ToDo: rename (July 4, 2023 Ryotaro)
 
 // WiFi credential 
 // Note to future developers: this is actually a bad practice! It is recommended 
@@ -41,27 +41,25 @@ char pass[] = ""; // your network password (use for WPA, or use as key for WEP)
 
 int status = WL_IDLE_STATUS; // the WiFi radio's status
 
-int state; //used for state machine <= is this an old variable? (July 3, 2023 Ryotaro)
-int collision_data[12];
-int collision_data1[12];
-int check_fall = 0; //= 0
-int count = 0;
-int count1 = 0;
-int check_array = 0;
+int state; // unused variable - ToDo: delete (July 4, 2023 Ryotaro)
+int collision_data[12]; // array to store bird-window collision time 
+int collision_data1[12]; // unused structure - ToDo: delete (July 4, 2023 Ryotaro)
+int check_fall = 0; // variable to keep track of 2-stage fall detection algorithm - used in task 3
+int count = 0; 
+int count1 = 0; // unused variable - ToDo: delete (July 4, 2023 Ryotaro)
+int check_array = 0; // unused variable - ToDo: delete (July 4, 2023 Ryotaro)
 int check_count = 0;
 
-//int buttonPin; //Pending
-//#define ResetPin 24; // or whatever pin is the reset pin
-int collisiondata;
+int collisiondata; 
 int i,dataa;
 const int GMT = 7;
-int count_sample = 0;
-int countttt=0;
+int count_sample = 0; // unused variable - ToDo: delete (July 4, 2023 Ryotaro)
+int countttt=0; // unused variable - ToDo: delete (July 4, 2023 Ryotaro)
 int last_timer =0;
 int hourrr=0;
-int flagggg = 0;
-int flaggg = 0;
-int difference = 0;
+int flagggg = 0; // unused variable - ToDo: delete (July 4, 2023 Ryotaro)
+int flaggg = 0; // unused variable - ToDo: delete (July 4, 2023 Ryotaro)
+int difference = 0; // unused variable - ToDo: delete (July 4, 2023 Ryotaro)
 int buttonState = 0; // variable for reading the pushbutton status
 
 // Thingspeak library
