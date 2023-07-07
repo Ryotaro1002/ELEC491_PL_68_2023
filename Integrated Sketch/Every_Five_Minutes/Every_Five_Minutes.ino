@@ -1,12 +1,12 @@
-//**************************************************************************
-// FreeRtos Code for Detection algorithm and sending data to Thingspeak
-// 
-//
-// This code uses a tick frequency of 4000Hz, and each tick lasts 250us.
-// 80000 ticks = 20 seconds
-//**************************************************************************
+/*
+  FreeRtos Code for Detection algorithm and sending data to Thingspeak 
+  This code uses a tick frequency of 4000Hz, and each tick lasts 250us.
+  80000 ticks = 20 seconds
 
-/* 
+  ToDo: add standard file information (Author, compatible Arduino, GitHub URLs, Revisions, etc.) (July 6, 2023 Ryotaro)
+*/
+
+/*
   Required libraries
 */
 
@@ -104,9 +104,7 @@ static bool prev_array = 1;
 int test_idx = -1; // index for test input (for debugging only)
 int i_detected = -1, i_flagset = -1, t_end = -1; // index when the detection algorithm detects a collision (for debugging only)
 
-//**************************************************************************
-// Type Defines and Constants
-//**************************************************************************
+// These are from FreeRTOS example code - ToDo: delete if not needed (July 6, 2023 Ryotaro)
 
 #define ERROR_LED_PIN 13 //Led Pin: Typical Arduino Board
 //#define ERROR_LED_PIN 2 //Led Pin: samd21 xplained board
@@ -118,20 +116,27 @@ int i_detected = -1, i_flagset = -1, t_end = -1; // index when the detection alg
 #define SERIAL SerialUSB //Sparkfun Samd21 Boards
 //#define SERIAL Serial //Adafruit, other Samd21 Boards
 
-//**************************************************************************
-// global variables
-//**************************************************************************
+//**********************************************************************
+
+/*
+  Task handles
+*/
 TaskHandle_t Handle_aTask;
 TaskHandle_t Handle_bTask;
 TaskHandle_t Handle_cTask;
 TaskHandle_t Handle_dTask;
-//TaskHandle_t Handle_monitorTask;
+//TaskHandle_t Handle_monitorTask; <= pretty sure it's not used - ToDo: delete (July 6, 2023 Ryotaro)
 
-//**************************************************************************
-// Can use these function for RTOS delays
-// Takes into account processor speed
-// Use these instead of delay(...) in rtos tasks
-//**************************************************************************
+//**********************************************************************
+
+/*
+  These are delay functions provided by the FreeRTOS SAMD21 library
+  - taken from: <URL> - ToDo: add URL (July 6, 2023 Ryotaro)
+  Original comments by the library author: 
+  - Can use these function for RTOS delays
+  - Takes into account processor speed
+  - Use these instead of delay(...) in rtos tasks
+*/
 void myDelayUs(int us)
 {
   vTaskDelay( us / portTICK_PERIOD_US );  
@@ -146,6 +151,12 @@ void myDelayMsUntil(TickType_t *previousWakeTime, int ms)
 {
   vTaskDelayUntil( previousWakeTime, (ms * 1000) / portTICK_PERIOD_US );  
 }
+
+//**********************************************************************
+
+/*
+  Task definitions
+*/
 
 /*
   Task 1: accelerometer sampling
@@ -316,74 +327,6 @@ static void task2( void *pvParameters )
 }
 
 /*
-  Task 4: send data to ThingSpeak
-*/
-static void task4( void *pvParameters ) 
-{
-  TickType_t lastWakeTimeeee = xTaskGetTickCount();
- 
-  while(1)
-  {
-    vTaskSuspend(Handle_bTask);
-    vTaskSuspend(Handle_aTask);
-    Serial.println("Task 4: Sending data to ThingSpeak start");
-    senddata_counter = 1;
-    Serial.println(count);
-    //last_timer = rtc.getMinutes();
-    //flagggg = 0;
-    //flaggg = 0;
-    //Serial.println(last_timer);
-    delay(10000);
-  
-    if ((count + check_count) != check_count){
-      ThingSpeak.begin(client); 
-      Serial.println("start1");
-      collision_data[count] = (count + check_count);
-      count = count + 1;
-      i = 0;
-        
-      while (i < count){    
-        Serial.println("Loop" +  String(i));
-        dataa = collision_data[i];  
-         
-        int x = ThingSpeak.writeField(tempChannelNumber, wirteFieldNumber, dataa, myWriteAPIKey);
-         
-        if (x != 200){
-          Serial.println("Problem updating channel. HTTP error code " + String(x));
-          delay(80000);     
-          int x = ThingSpeak.writeField(tempChannelNumber, wirteFieldNumber, dataa, myWriteAPIKey);
-        }
-          
-        Serial.println("Updating channel. HTTP code " + String(x));
-        i = i + 1;
-        if (i < count){
-          delay(80000);
-        }
-      }
-    
-      collision_data[12] = {};
-      check_count = (check_count + count - 1);
-      //flagggg = 0;
-      //flaggg = 0;
-      count = 0;
-    }
-    //last_timer = rtc.getMinutes();
-    //flagggg = 0;
-    //flaggg = 0;
-    //Serial.println(last_timer);
-    //vTaskResume(Handle_aTask); // suspends thread C
-    //vTaskResume(Handle_bTask);
-    Serial.println("Task 4: Sending data to ThingSpeak End");
-    vTaskResume(Handle_aTask);
-    vTaskResume(Handle_bTask);
-    vTaskDelayUntil(&lastWakeTimeeee, 1200000);
-    if (fall_counter == 1){
-      lastWakeTimeeee = xTaskGetTickCount();
-    }
-  }
-}
-
-/*
   Task 3: accelerometer fall detection
   - check accelerometer's y position every 5 minutes
   - report a fall if the value is below a threshold twice in a row (i.e., for at least 10 minutes)
@@ -460,45 +403,115 @@ static void task3( void *pvParameters )
   }
 }
 
-//*****************************************************************
-// Task will periodically print out useful information about the tasks running
-// Is a useful tool to help figure out stack sizes being used
-// Run time stats are generated from all task timing collected since startup
-// No easy way yet to clear the run time stats yet
-//*****************************************************************
-static char ptrTaskList[400]; //temporary string buffer for task stats
 /*
-void taskMonitor(void *pvParameters)
+  Task 4: send data to ThingSpeak
+  - ToDo: add descriptions (July 6, 2023 Ryotaro)
+*/
+static void task4( void *pvParameters ) 
 {
-    int x;
-    int measurement;
+  TickType_t lastWakeTimeeee = xTaskGetTickCount();
+ 
+  while(1)
+  {
+    vTaskSuspend(Handle_bTask);
+    vTaskSuspend(Handle_aTask);
+    Serial.println("Task 4: Sending data to ThingSpeak start");
+    senddata_counter = 1;
+    Serial.println(count);
+    //last_timer = rtc.getMinutes();
+    //flagggg = 0;
+    //flaggg = 0;
+    //Serial.println(last_timer);
+    delay(10000);
+  
+    if ((count + check_count) != check_count){
+      ThingSpeak.begin(client); 
+      Serial.println("start1");
+      collision_data[count] = (count + check_count);
+      count = count + 1;
+      i = 0;
+        
+      while (i < count){    
+        Serial.println("Loop" +  String(i));
+        dataa = collision_data[i];  
+         
+        int x = ThingSpeak.writeField(tempChannelNumber, wirteFieldNumber, dataa, myWriteAPIKey);
+         
+        if (x != 200){
+          Serial.println("Problem updating channel. HTTP error code " + String(x));
+          delay(80000);     
+          int x = ThingSpeak.writeField(tempChannelNumber, wirteFieldNumber, dataa, myWriteAPIKey);
+        }
+          
+        Serial.println("Updating channel. HTTP code " + String(x));
+        i = i + 1;
+        if (i < count){
+          delay(80000);
+        }
+      }
     
-    SERIAL.println("Task Monitor: Started");
+      collision_data[12] = {};
+      check_count = (check_count + count - 1);
+      //flagggg = 0;
+      //flaggg = 0;
+      count = 0;
+    }
+    //last_timer = rtc.getMinutes();
+    //flagggg = 0;
+    //flaggg = 0;
+    //Serial.println(last_timer);
+    //vTaskResume(Handle_aTask); // suspends thread C
+    //vTaskResume(Handle_bTask);
+    Serial.println("Task 4: Sending data to ThingSpeak End");
+    vTaskResume(Handle_aTask);
+    vTaskResume(Handle_bTask);
+    vTaskDelayUntil(&lastWakeTimeeee, 1200000);
+    if (fall_counter == 1){
+      lastWakeTimeeee = xTaskGetTickCount();
+    }
+  }
+}
 
-    // run this task afew times before exiting forever
-    while(1)
-    {
-      myDelayMs(10000); // print every 10 seconds
+/*
+  Task for debugging provided by the FreeRTOS SAMD21 library
+  Original comments by the library author: 
+  - Task will periodically print out useful information about the tasks running
+  - Is a useful tool to help figure out stack sizes being used
+  - Run time stats are generated from all task timing collected since startup
+  - No easy way yet to clear the run time stats yet
+*/
+static char ptrTaskList[400]; //temporary string buffer for task stats
+void taskMonitor( void *pvParameters )
+{
+  int x;
+  int measurement;
+  
+  SERIAL.println("Task Monitor: Started");
 
-      SERIAL.flush();
+  // run this task afew times before exiting forever
+  while(1)
+  {
+    myDelayMs(10000); // print every 10 seconds
+
+    SERIAL.flush();
     SERIAL.println("");      
-      SERIAL.println("****************************************************");
-      SERIAL.print("Free Heap: ");
-      SERIAL.print(xPortGetFreeHeapSize());
-      SERIAL.println(" bytes");
+    SERIAL.println("****************************************************");
+    SERIAL.print("Free Heap: ");
+    SERIAL.print(xPortGetFreeHeapSize());
+    SERIAL.println(" bytes");
 
-      SERIAL.print("Min Heap: ");
-      SERIAL.print(xPortGetMinimumEverFreeHeapSize());
-      SERIAL.println(" bytes");
-      SERIAL.flush();
+    SERIAL.print("Min Heap: ");
+    SERIAL.print(xPortGetMinimumEverFreeHeapSize());
+    SERIAL.println(" bytes");
+    SERIAL.flush();
 
-      SERIAL.println("****************************************************");
-      SERIAL.println("Task            ABS             %Util");
-      SERIAL.println("****************************************************");
+    SERIAL.println("****************************************************");
+    SERIAL.println("Task            ABS             %Util");
+    SERIAL.println("****************************************************");
 
-      vTaskGetRunTimeStats(ptrTaskList); //save stats to char array
-      SERIAL.println(ptrTaskList); //prints out already formatted stats
-      SERIAL.flush();
+    vTaskGetRunTimeStats(ptrTaskList); //save stats to char array
+    SERIAL.println(ptrTaskList); //prints out already formatted stats
+    SERIAL.flush();
 
     SERIAL.println("****************************************************");
     SERIAL.println("Task            State   Prio    Stack   Num     Core" );
@@ -530,19 +543,23 @@ void taskMonitor(void *pvParameters)
 
     SERIAL.println("****************************************************");
     SERIAL.flush();
+  }
 
-    }
-
-    // delete ourselves.
-    // Have to call this or the system crashes when you reach the end bracket and then get scheduled.
-    SERIAL.println("Task Monitor: Deleting");
-    vTaskDelete( NULL );
-
+  // delete ourselves.
+  // Have to call this or the system crashes when you reach the end bracket and then get scheduled.
+  SERIAL.println("Task Monitor: Deleting");
+  vTaskDelete( NULL );
 }
+
+//**********************************************************************
+
+/*
+  Setup 
+  - set up digital pin for external reset button
+  - initialize accelerometer and wavelet denoising filterbank
+  - synchronize RTC time
+  - create tasks
 */
-
-//*****************************************************************
-
 void setup() 
 {
   pinMode(0, INPUT); // digital pin 0 is used for external reset button
@@ -558,7 +575,8 @@ void setup()
   SERIAL.println("******************************");
   SERIAL.println("        Program start         ");
   SERIAL.println("******************************");
-  SERIAL.flush();*/
+  SERIAL.flush();
+  */
 
   settuppacc(); // initialize ADXL343 accelerometer and the wavelet denoising filterbank
   connectWiFiNetwork(); // connect to WiFi network
@@ -567,11 +585,11 @@ void setup()
   // Set the led the rtos will blink when we have a fatal rtos error
   // RTOS also Needs to know if high/low is the state that turns on the led.
   // Error Blink Codes:
-  //    3 blinks - Fatal Rtos Error, something bad happened. Think really hard about what you just changed.
-  //    2 blinks - Malloc Failed, Happens when you couldn't create a rtos object. 
-  //               Probably ran out of heap.
-  //    1 blink  - Stack overflow, Task needs more bytes defined for its stack! 
-  //               Use the taskMonitor thread to help gauge how much more you need
+  //   3 blinks - Fatal Rtos Error, something bad happened. Think really hard about what you just changed.
+  //   2 blinks - Malloc Failed, Happens when you couldn't create a rtos object. 
+  //              Probably ran out of heap.
+  //   1 blink  - Stack overflow, Task needs more bytes defined for its stack! 
+  //              Use the taskMonitor thread to help gauge how much more you need
   vSetErrorLed(ERROR_LED_PIN, ERROR_LED_LIGHTUP_STATE);
 
   // sets the serial port to print errors to when the rtos crashes
@@ -581,34 +599,29 @@ void setup()
   // Create the threads that will be managed by the rtos
   // Sets the stack size and priority of each task
   // Also initializes a handler pointer to each task, which are important to communicate with and retrieve info from tasks
-  xTaskCreate(task1,     "Task A",       256, NULL, tskIDLE_PRIORITY + 3, &Handle_aTask);
-  xTaskCreate(task2,     "Task B",       1024, NULL, tskIDLE_PRIORITY + 4, &Handle_bTask);
-  xTaskCreate(task4,     "Task C",       256, NULL, tskIDLE_PRIORITY + 1, &Handle_cTask);
-  xTaskCreate(task3,     "Task D",       256, NULL, tskIDLE_PRIORITY + 2, &Handle_dTask);
-  //xTaskCreate(threadE,     "Task E",       256, NULL, tskIDLE_PRIORITY + 1, &Handle_eTask);
+  xTaskCreate(task1, "Task A", 256, NULL, tskIDLE_PRIORITY + 3, &Handle_aTask);
+  xTaskCreate(task2, "Task B", 1024, NULL, tskIDLE_PRIORITY + 4, &Handle_bTask);
+  xTaskCreate(task4, "Task C", 256, NULL, tskIDLE_PRIORITY + 1, &Handle_cTask);
+  xTaskCreate(task3, "Task D", 256, NULL, tskIDLE_PRIORITY + 2, &Handle_dTask);
   //xTaskCreate(taskMonitor, "Task Monitor", 256, NULL, tskIDLE_PRIORITY + 1, &Handle_monitorTask);
 
-  // Start the RTOS, this function will never return and will schedule the tasks.
-  // vTaskSuspend(Handle_aTask);
   vTaskSuspend(Handle_bTask); // task 2 is initially suspended
-  //vTaskSuspend(Handle_cTask);
-  //vTaskSuspend(Handle_dTask);
+  // Start the RTOS, this function will never return and will schedule the tasks
   vTaskStartScheduler();
 
   // error scheduler failed to start
   // should never get here
   while(1)
   {
+    // ToDo: add ThingSpeak notification in case of error (July 6, 2023 Ryotaro)
     SERIAL.println("Scheduler Failed! \n");
     SERIAL.flush();
     delay(1000);
   }
 }
 
-//*****************************************************************
-// This is now the rtos idle loop
-// No rtos blocking functions allowed!
-//*****************************************************************
+//**********************************************************************
+
 void loop() 
 {
   // Optional commands, can comment/uncomment below
@@ -617,7 +630,7 @@ void loop()
   delay(500); //delay is interrupt friendly, unlike vNopDelayMS
 }
 
-//*****************************************************************
+//**********************************************************************
 
 /*
   Initialize ADXL343 accelerometer and the wavelet denoising filterbank
@@ -629,7 +642,7 @@ void settuppacc()
   // accelerometer initialization (taken from example)
   if (!accel.begin()) {
     Serial.println("ERROR: no ADXL343 detected - check wiring");
-    while(1); 
+    while(1); // ToDo: don't do infinite loop (July 6, 2023 Ryotaro)
   }
   accel.setRange(ADXL343_RANGE_16_G); // 2,4,8,16g configurable
   accel.setDataRate(ADXL343_DATARATE_400_HZ); // refer to Adafruit_ADXL343.h for values 
@@ -664,21 +677,9 @@ void gettime()
   //Serial.println("Thread E: END");
 }
 
-/*-----------------------------------------------------------------*/
-/*-----------------------------------------------------------------*/
-/*****
- * Function definition:   Set initial time
- * 
- * 
- * Parameters:
- * 
- * void
- * 
- * Return value:
- * 
- * void
- * 
- *****/
+/*
+  set initial time
+*/
 void settime()
 {
   rtc.begin(); // initialize RTC
@@ -693,7 +694,8 @@ void settime()
   rtc.setEpoch(epoch);
   //Serial.println();
   
-  /*Serial.print(rtc.getDay());
+  /*
+  Serial.print(rtc.getDay());
   Serial.print("/");
   Serial.print(rtc.getMonth());
   Serial.print("/");
@@ -713,30 +715,18 @@ void settime()
   print2digits(rtc.getMinutes());
   Serial.print(":");
   print2digits(rtc.getSeconds());
-  Serial.println();*/
+  Serial.println();
+  */
 
   last_timer = rtc.getMinutes();
   Serial.println(last_timer);
 }
 
-/*-----------------------------------------------------------------*/
-/*-----------------------------------------------------------------*/
-/*****
- * Function definition:   connectWiFiNetwork
- * 
- * Purpose: Connect to WiFi network
- * 
- * Parameters:
- * 
- * void
- * 
- * Return value:
- * 
- * void
- * 
- *****/
-  
-void connectWiFiNetwork (void) 
+/*
+  - connect to WiFi network 
+  - taken from WiFiNINA library example - ToDo: add URL (July 6, 2023 Ryotaro)
+*/
+void connectWiFiNetwork(void) 
 {
   // check for the WiFi module:
   if (WiFi.status() == WL_NO_MODULE) {
@@ -768,24 +758,12 @@ void connectWiFiNetwork (void)
   //Serial.print("You're connected to the network");
   printCurrentNet();
   printWifiData();
-
 }
 
-/*-----------------------------------------------------------------*/
-/*****
- * Function definition:   printCurrentNet
- * 
- * Purpose: Prints current network information
- * 
- * Parameters:
- * 
- * void
- * 
- * Return value:
- * 
- * void
- * 
- *****/
+/*
+  - prints current network information
+  - taken from WiFiNINA library example - ToDo: add URL (July 6, 2023 Ryotaro)
+*/
 void printCurrentNet() 
 {
   // print the SSID of the network you're attached to:
@@ -810,21 +788,10 @@ void printCurrentNet()
   Serial.println();
 }
 
-/*-----------------------------------------------------------------*/
-/*****
- * Function definition:   printWifiData
- * 
- * Purpose: Prints WiFi network data.
- * 
- * Parameters:
- * 
- * void
- * 
- * Return value:
- * 
- * void
- * 
- *****/
+/*
+  - prints WiFi network data
+  - taken from WiFiNINA library example - ToDo: add URL (July 6, 2023 Ryotaro)
+*/
 void printWifiData() 
 { 
   // print your board's IP address:
@@ -840,21 +807,10 @@ void printWifiData()
   printMacAddress(mac);
 }
 
-/*-----------------------------------------------------------------*/
-/*****
- * Function definition:   printMacAddress
- * 
- * Purpose: Prints network device MAC address.
- * 
- * Parameters:
- * 
- * void
- * 
- * Return value:
- * 
- * byte mac address
- * 
- *****/
+/*
+  - prints network device MAC address
+  - taken from WiFiNINA library example - ToDo: add URL (July 6, 2023 Ryotaro)
+*/
 void printMacAddress(byte mac[]) 
 {  
   for (int i = 5; i >= 0; i--) {
@@ -871,20 +827,10 @@ void printMacAddress(byte mac[])
   Serial.println();
 }
 
-/*-----------------------------------------------------------------*/
-/*****
- * Function definition:   printNumberwith0
- * 
- * Parameters:
- * 
- * void
- * 
- * Return value:
- * 
- * byte mac address
- * 
- *****/
-
+/*
+  - prints 1-digit numbers with 0 (00, 01, 02, ...)
+  - taken from RTCZero library example - ToDo: add URL (July 6, 2023 Ryotaro)
+*/
 void print2digits(int number) 
 {
   if (number < 10) {
