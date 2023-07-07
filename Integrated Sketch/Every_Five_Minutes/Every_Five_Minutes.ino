@@ -7,6 +7,13 @@
 */
 
 /*
+  <Insert description>
+  Author: <Name>
+  Date created: <Date>
+  Arduino: MKR WiFi 1010
+*/
+
+/*
   Required libraries
 */
 
