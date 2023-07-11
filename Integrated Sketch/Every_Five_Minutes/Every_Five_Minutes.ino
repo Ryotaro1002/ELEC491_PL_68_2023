@@ -52,7 +52,7 @@ int state; // unused variable - ToDo: delete (July 4, 2023 Ryotaro)
 int collision_data[12]; // array to store bird-window collision time 
 int collision_data1[12]; // unused structure - ToDo: delete (July 4, 2023 Ryotaro)
 int check_fall = 0; // variable to keep track of 2-stage fall detection algorithm - used in task 3
-int count = 0; 
+int count = 0; // counter to keep track of how many collision time is currently saved in the collision_data array
 int count1 = 0; // unused variable - ToDo: delete (July 4, 2023 Ryotaro)
 int check_array = 0; // unused variable - ToDo: delete (July 4, 2023 Ryotaro)
 int check_count = 0;
@@ -236,7 +236,7 @@ static void task2( void *pvParameters )
     Serial.println("Task 2: Detection algorithm begin");
     if (isBuffer0Full && isBuffer1Full) {
       Serial.println("Error case: both buffers full");
-      while(1){};
+      while(1){}; // ToDo: don't do infinite loop (July 10, 2023 Ryotaro)
     } else if (isBuffer0Full || isBuffer1Full) {
       // Serial.print("Detection algorithm begin"); // for debugging only
       // reset detected flag
@@ -434,9 +434,9 @@ static void task4( void *pvParameters )
     if ((count + check_count) != check_count){
       ThingSpeak.begin(client); 
       Serial.println("start1");
-      collision_data[count] = (count + check_count);
+      collision_data[count] = (count + check_count); // isn't this overwriting a garbage number into collision_data array? (July 10, 2023 Ryotaro)
       count = count + 1;
-      i = 0;
+      i = 0; // can this be a local variable or renamed? (July 10, 2023 Ryotaro)
         
       while (i < count){    
         Serial.println("Loop" +  String(i));
@@ -656,43 +656,51 @@ void settuppacc()
 }
 
 /*
-  Synchronize RTC used to keep track of time on Arduino
+  Read current time from the syced RTC and save it as the time of collision
+  - Returned time is in GMT/UTC, so time is converted to PST
+
+  ToDo: is Daylight Savings Time taken into account? (July 10, 2023 Ryotaro)
 */
 void gettime()
 {
-  //Serial.println("Thread E: Started");
-  //vTaskResume(Handle_aTask);
-  char buffer [8];
-  uint8_t secc, mintt, hourr;
+  char buffer [8]; // is the space between the array name and [] okay? (July 10, 2023 Ryotaro)
+  uint8_t secc, mintt, hourr; // ToDo: rename these (July 10, 2023 Ryotaro)
       
-  if (rtc.getHours()<7) {
-    hourr =(rtc.getHours()+17);
+  // timezone is in GMT/UTC, so convert to PST
+  if (rtc.getHours() < 7) {
+    hourr = (rtc.getHours() + 17);
     //int day = (rtc.getDay()-1);
   } else {
-    hourr =(rtc.getHours()-GMT);
+    hourr =(rtc.getHours() - GMT);
   }
   mintt = rtc.getMinutes();
   secc = rtc.getSeconds();
     
+  // this part combines hours, minutes, and seconds (all in uint8_t) into one string,
+  // then convert the resultant string back into an integer.
+  // there has to be a better way of handling this (July 10, 2023 Ryotaro)
   sprintf (buffer, "%02u%02u%02u", hourr, mintt, secc); 
   collisiondata = atoi((char *)buffer);
+
   Serial.println(collisiondata);
 
-  collision_data[count] = collisiondata;
-  count = count+1;
-    
-  //Serial.println("Thread E: END");
+  collision_data[count] = collisiondata; // ToDo: update these names since they are collision time, not data (July 10, 2023 Ryotaro)
+  count = count + 1; // overflow handling? (July 10, 2023 Ryotaro)
 }
 
 /*
-  set initial time
+  Sync RTC with NTP server
+  - Returned time is in GMT/UTC, so conversion is required when reading from synced RTC
+  
+  ToDo: is Daylight Savings Time taken into account? (July 10, 2023 Ryotaro)
 */
 void settime()
 {
   rtc.begin(); // initialize RTC
   unsigned long epoch;
-  epoch = WiFi.getTime();
+  epoch = WiFi.getTime(); // returns # of seconds since January 1st, 1970 on success, or 0 on failure
 
+  // this can be combined with the code above
   while (epoch == 0) {
     epoch = WiFi.getTime();
   }
@@ -710,12 +718,14 @@ void settime()
   Serial.print(" ");
   */
   
-  if (rtc.getHours()<7) {
-    hourrr =(rtc.getHours()+17);
+  // timezone is in GMT/UTC, so convert to PST when printing time
+  if (rtc.getHours() < 7) {
+    hourrr =(rtc.getHours() + 17);
     //int day = (rtc.getDay()-1);
   } else {
-    hourrr =(rtc.getHours()-GMT);
+    hourrr =(rtc.getHours() - GMT);
   }
+
   /*
   print2digits(hourrr);
   Serial.print(":");
@@ -739,7 +749,7 @@ void connectWiFiNetwork(void)
   if (WiFi.status() == WL_NO_MODULE) {
     //Serial.println("Communication with WiFi module failed!");
     // don't continue
-    while (true);
+    while (true); // ToDo: don't do infinite loop (July 10, 2023 Ryotaro)
   }
 
   String fv = WiFi.firmwareVersion();
@@ -756,7 +766,7 @@ void connectWiFiNetwork(void)
     //Serial.println("vTaskDelay start");
     // wait few seconds for connection:
     
-    delay(6000);//1.5 seconds
+    delay(6000); // 1.5 seconds <- is it 1.5s or 6s? (July 10, 2023 Ryotaro)
     //vTaskDelay(400);
     //Serial.println("vTaskDelay end");
   }
