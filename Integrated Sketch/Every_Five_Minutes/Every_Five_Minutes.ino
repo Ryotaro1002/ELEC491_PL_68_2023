@@ -7,17 +7,25 @@
 */
 
 /*
-  <Insert description>
-  Author: <Name>
+  Description: 
+  Arduino sketch that integrates the following functionalities: 
+  1. perform collision detection using an accelerometer, 
+  2. perform periodic fall detection task to check if the accelerometer fell, and 
+  3. periodically (every 5 minutes) upload collision data to ThingSpeak via WiFi if any. 
+     If no collision is detected during a 5-minute period, Arduino will NOT send data
+     to ThingSpeak to avoid unneccesary communication. 
+
+  Authors: <Name>
   Date created: <Date>
-  Arduino: MKR WiFi 1010
+  GitHub URL: https://github.com/Ryotaro1002/ELEC491_PL_68_2023
+  Tested Arduino: MKR WiFi 1010
 */
 
 /*
   Required libraries
+  - see "libraries" folder on GitHub repository for more details
 */
 
-// include required libraries - see "libraries" folder on GitHub repository
 #include <WiFiNINA.h> // WiFi library for Arduinos with Nina module
 #include <RTCZero.h> // RTC library
 #include <SPI.h> // is this needed? Check (May 14, 2023 Ryotaro)
@@ -30,7 +38,7 @@ RTCZero rtc; // declare RTC object
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL343.h>
 
-#include "waveletDenoiser.h" // library for wavelet denoising
+#include "waveletDenoiser.h" // custom library for wavelet denoising
 static float32_t output[BLOCK_SIZE]; // output array for wavelet denoising
 
 // define global constants
