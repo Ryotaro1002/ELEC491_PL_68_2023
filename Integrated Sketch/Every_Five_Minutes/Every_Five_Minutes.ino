@@ -220,7 +220,7 @@ static void task1( void *pvParameters )
     }
     //SERIAL.println("Thread A: Stop");
     vTaskDelayUntil(&lastWakeTime, 10);
-    // would it ever get to this point? (May 14, 2023 Ryotaro)
+    // what is this part doing? (July 13, 2023 Ryotaro)
     if (fall_counter == 1) {
       lastWakeTime = xTaskGetTickCount();
       fall_counter == 0;
@@ -259,7 +259,7 @@ static void task2( void *pvParameters )
         input = &z_data1[0];
       } else {
         Serial.println("Error case: neither buffer is full"); // for debugging only
-        while(1){};
+        while(1){}; // ToDo: don't do infinite loop (July 13, 2023 Ryotaro)
       }
 
       float32_t *denoised = &output[0];    
@@ -333,7 +333,7 @@ static void task2( void *pvParameters )
         isBuffer1Full = 0;
       } else {
         Serial.print("Error case: both buffers are full");
-        while(1){};
+        while(1){}; // ToDo: don't do infinite loop (July 13, 2023 Ryotaro)
       }
     }
     
@@ -437,7 +437,7 @@ static void task4( void *pvParameters )
     //flagggg = 0;
     //flaggg = 0;
     //Serial.println(last_timer);
-    delay(10000);
+    delay(10000); // why is this delay here? (July 13, 2023 Ryotaro)
   
     if ((count + check_count) != check_count){
       ThingSpeak.begin(client); 
