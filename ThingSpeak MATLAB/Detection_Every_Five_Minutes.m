@@ -3,10 +3,15 @@
 % Write timestamps and collision numbers received seperately to another data field within one ThingSpeak channel. 
 
 % Channel ID and APIkeys
-channelID = 2026263;
-writeAPIKey = 'WN6UZKY58ABMJW89';  
-readAPIKey = 'AQRWX7EYH43YYRGD'; 
+% channelID = 2026263;
+% writeAPIKey = 'WN6UZKY58ABMJW89';  
+% readAPIKey = 'AQRWX7EYH43YYRGD'; 
 
+% API info for my personal ThingSpeak channel (for debugging)
+channelID = 2220888;
+writeAPIKey = 'NODGSWNS9MDPIWDW';  
+readAPIKey = '7EY0JOIIZY4DT9DU'; 
+ 
 % Define variables
 size = 0;
 data = 0;
@@ -29,6 +34,7 @@ j = 10;
 k = 1;
 last_counter = last_size0(j);
 
+% What is this part even doing? (July 25, 2023 Ryotaro)
 while isnan(last_counter)
      j = j-1;
      k = k+1;
@@ -63,6 +69,8 @@ display(new_element,'updated data');
 display(checkallNaN,'checkallNaN');
 
 % Check whether the received collision data is updated and larger than the last collision numbers stored
+% If the last_counter is NaN, this if statement outputs false, even when
+% there are new data to be uploaded (July 25, 2023 Ryotaro)
 if new_element > last_counter
     isnew = 1;
     size = new_element-last_counter;
@@ -89,6 +97,7 @@ if (checkallNaN == 0) && (isnew == 1)
         display(tStamps,'tStamps');
     end
     
+    % I think this part is doing nothing (July 25, 2023 Ryotaro)
     % Conversion of the date of today
     t = today('datetime');
     c = yyyymmdd(t);
@@ -120,5 +129,7 @@ if (checkallNaN == 0) && (isnew == 1)
     thingSpeakWrite(channelID,'Fields',5,'Values',cNums,'TimeStamp',time_data,'WriteKey',writeAPIKey);
     
 else
+   % The script won't remember anything, so what is this doing? (July 25,
+   % 2023 Ryotaro)
    allNaN_num = allNaN_num+1; % Increment if there is no data sent from the microcontroller
 end   
